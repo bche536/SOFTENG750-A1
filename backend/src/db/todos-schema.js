@@ -7,7 +7,8 @@ const todoSchema = new Schema({
     title: { type: String, required: true },
     description: String,
     isComplete: Boolean,
-    dueDate: { type: Date, required: true }
+    dueDate: { type: Date, required: true },
+    userID: { type: String, required: true }
 }, {
     timestamps: {}
 });

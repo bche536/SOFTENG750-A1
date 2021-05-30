@@ -13,8 +13,8 @@ export async function createTodo(todo) {
     return dbTodo;
 }
 
-export async function retrieveAllTodos() {
-    return await Todo.find();
+export async function retrieveAllTodos(userID) {
+    return await Todo.find({ userID });
 }
 
 export async function retrieveTodo(id) {

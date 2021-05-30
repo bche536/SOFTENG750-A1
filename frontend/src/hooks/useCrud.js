@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth0 } from '@auth0/auth0-react';
 
 /**
  * A more advanced version of useGet(), which exposes functions for creating, updating, and deleting
@@ -10,11 +11,25 @@ export default function useCrud(baseUrl, initialState = null, idProp = '_id') {
     const [data, setData] = useState(initialState);
     const [isLoading, setLoading] = useState(false);
     const [version, setVersion] = useState(0);
+    const [accessToken, setAccessToken] = useState(undefined);
+    const { getAccessTokenSilently } = useAuth0();
+    const audience = process.env.REACT_APP_AUTH0_AUDIENCE;
 
     // Load all data when we first use this hook, or whenever we change the url or re-fetch.
     useEffect(() => {
         setLoading(true);
-        axios.get(baseUrl)
+
+        getAccessTokenSilently({
+            aud: audience,
+            scope: 'create:todo read:todo update:todo delete:todo',
+          }).then((token) => {
+            setAccessToken(token);
+
+        axios.get(baseUrl, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
             .then(response => {
                 setLoading(false);
                 setData(response.data);
@@ -23,7 +38,8 @@ export default function useCrud(baseUrl, initialState = null, idProp = '_id') {
                 // TODO error handling...
                 setLoading(false);
             });
-    }, [baseUrl, version]);
+        })
+    }, [baseUrl, version, getAccessTokenSilently, audience]);
 
     // Trigger a re-fetch
     function reFetch() {
@@ -38,7 +54,11 @@ export default function useCrud(baseUrl, initialState = null, idProp = '_id') {
      * with the new data, then roll it back if the server-side update fails.
      */
     function update(item) {
-        return axios.put(`${baseUrl}/${item[idProp]}`, item)
+        return axios.put(`${baseUrl}/${item[idProp]}`, item, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          })
             .then(response => {
                 setData(data.map(d =>
                     d[idProp] === item[idProp] ? { ...d, ...item } : d));
@@ -56,7 +76,11 @@ export default function useCrud(baseUrl, initialState = null, idProp = '_id') {
      * with the new data, then roll it back if the server-side update fails.
      */
     function create(item) {
-        return axios.post(baseUrl, item)
+        return axios.post(baseUrl, item, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          })
             .then(response => {
                 const newItem = response.data;
                 setData([...data, newItem]);
@@ -71,7 +95,11 @@ export default function useCrud(baseUrl, initialState = null, idProp = '_id') {
      * item from the "data" state.
      */
     function deleteItem(id) {
-        return axios.delete(`${baseUrl}/${id}`)
+        return axios.delete(`${baseUrl}/${id}`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          })
             .then(response => {
                 setData(data.filter(item => item[idProp] !== id));
             })

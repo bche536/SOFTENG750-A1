@@ -17,6 +17,9 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'flex-start',
     alignItems: 'stretch',
   },
+  nav: {
+    flexGrow: 1,
+  },
 }));
 
 function App() {
@@ -28,7 +31,7 @@ function App() {
     <>
       <AppBar position="fixed">
         <Toolbar>
-          <Typography variant="h6">My Todos</Typography>
+          <Typography className={classes.nav} variant="h6">My Todos</Typography>
           <Button variant="contained" onClick={() => logout()}>
             Logout
           </Button>

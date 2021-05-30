@@ -1,6 +1,7 @@
 import express from 'express';
 import * as todosDao from '../../db/todos-dao';
 import mongoose from 'mongoose';
+import checkJwt from '../../middleware/checkJwt';
 
 // const HTTP_OK = 200; // Not really needed; this is the default if you don't set something else.
 const HTTP_CREATED = 201;
@@ -29,36 +30,38 @@ router.use('/:id', async (req, res, next) => {
 });
 
 // Create todo
-router.post('/', async (req, res) => {
+router.post('/', checkJwt, async (req, res) => {
     if (!req.body.title) {
         res.status(HTTP_BAD_REQUEST)
             .contentType('text/plain').send('New todos must have a title');
         return;
     }
-    const newTodo = await todosDao.createTodo(req.body);
+    const { sub } = req.user;
+    const todo = { ...req.body, userID: sub };
+    const newTodo = await todosDao.createTodo(todo);
     res.status(HTTP_CREATED)
         .header('location', `/api/todos/${newTodo._id}`)
         .json(newTodo);
 });
 
 // Retrieve todo list
-router.get('/', async (req, res) => {
-
-    // Uncomment this code if you want to introduce an artificial delay.
-    // setTimeout(async () => {
-    //     res.json(await todosDao.retrieveAllTodos());
-    // }, 2000);
-
-    // Comment this code if you want to introduce an artificial delay.
-    res.json(await todosDao.retrieveAllTodos());
+router.get('/', checkJwt, async (req, res) => {
+    const { sub } = req.user;
+    res.json(await todosDao.retrieveAllTodos(sub));
 });
 
 // Retrieve single todo
-router.get('/:id', async (req, res) => {
+router.get('/:id', checkJwt, async (req, res) => {
+    const { sub } = req.user;
     const { id } = req.params;
     const todo = await todosDao.retrieveTodo(id);
     if (todo) {
-        res.json(todo);
+        if (todo.userID == sub) {
+            res.json(todo);
+        } else {
+            res.sendStatus(HTTP_UNAUTHORIZED);
+            return;
+        }
     }
     else {
         res.sendStatus(HTTP_NOT_FOUND);
@@ -66,21 +69,45 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update todo
-router.put('/:id', async (req, res) => {
+router.put('/:id', checkJwt, async (req, res) => {
+    const { sub } = req.user;
     const { id } = req.params;
     const todo = {
         ...req.body,
         _id: id
     };
-    const success = await todosDao.updateTodo(todo);
-    res.sendStatus(success ? HTTP_NO_CONTENT : HTTP_NOT_FOUND);
+
+    const todoToBeUpdated = await todosDao.retrieveTodo(id);
+    if (todoToBeUpdated) {
+        if (todoToBeUpdated.userID == sub) {
+            const success = await todosDao.updateTodo(todo);
+            res.sendStatus(success ? HTTP_NO_CONTENT : HTTP_NOT_FOUND);
+        } else {        
+            res.sendStatus(HTTP_UNAUTHORIZED);
+            return;
+        }
+    } else {
+        res.sendStatus(HTTP_NOT_FOUND);
+    }
 });
 
 // Delete todo
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', checkJwt, async (req, res) => {
+    const { sub } = req.user;
     const { id } = req.params;
-    await todosDao.deleteTodo(id);
-    res.sendStatus(HTTP_NO_CONTENT);
+
+    const todoToBeDeleted = await todosDao.retrieveTodo(id);
+    if (todoToBeDeleted) {
+        if (todoToBeDeleted.userID == sub) {
+            await todosDao.deleteTodo(id);
+            res.sendStatus(HTTP_NO_CONTENT);
+        } else {
+            res.sendStatus(HTTP_UNAUTHORIZED);
+            return;
+        }
+    } else {
+        res.sendStatus(HTTP_NO_CONTENT);
+    }
 })
 
 export default router;
