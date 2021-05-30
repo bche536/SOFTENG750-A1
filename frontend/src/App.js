@@ -32,7 +32,7 @@ function App() {
       <AppBar position="fixed">
         <Toolbar>
           <Typography className={classes.nav} variant="h6">My Todos</Typography>
-          <Button variant="contained" onClick={() => logout()}>
+          <Button variant="outlined" color="secondary" onClick={() => logout()}>
             Logout
           </Button>
         </Toolbar>
